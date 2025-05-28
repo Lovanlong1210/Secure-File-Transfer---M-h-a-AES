@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure File Transfer - Mã hóa AES</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #718096;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #cbd5e0;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone.dragover .upload-icon {
+            color: #667eea;
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress {
+            background: #e2e8f0;
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 6px;
+        }
+
+        .file-info {
+            background: #f0f4ff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: #f0fff4;
+            color: #38a169;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #e53e3e;
+            border: 1px solid #feb2b2;
+        }
+
+        .status.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .socket-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f56565;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #48bb78;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .download-section {
+            text-align: center;
+        }
+
+        .download-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .feature {
+            background: #f8f9ff;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+
+        .feature h3 {
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .feature p {
+            color: #718096;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔒</div>
+            <h1>Secure File Transfer</h1>
+            <p class="subtitle">Truyền file an toàn với mã hóa AES</p>
+        </div>
+
+        <div class="socket-status">
+            <div class="status-dot" id="connectionStatus"></div>
+            <span id="connectionText">Đang kết nối Socket...</span>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('upload')">📤 Gửi File</div>
+            <div class="tab" onclick="switchTab('download')">📥 Nhận File</div>
+        </div>
+
+        <div id="upload-tab" class="tab-content active">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📁</div>
+                <h3>Kéo thả file vào đây hoặc click để chọn</h3>
+                <p>Hỗ trợ tất cả định dạng file</p>
+                <input type="file" id="fileInput" style="display: none;">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <h4>📄 Thông tin file:</h4>
+                <p id="fileName">Tên file: -</p>
+                <p id="fileSize">Kích thước: -</p>
+                <p id="fileType">Loại file: -</p>
+            </div>
+
+            <div class="form-group">
+                <label for="encryptionKey">🔑 Mật khẩu mã hóa (AES-256):</label>
+                <input type="password" id="encryptionKey" placeholder="Nhập mật khẩu để mã hóa file" required>
+            </div>
+
+            <div class="form-group">
+                <label for="recipientId">👤 ID người nhận (tùy chọn):</label>
+                <input type="text" id="recipientId" placeholder="Nhập ID người nhận hoặc để trống để tạo link công khai">
+            </div>
+
+            <button class="btn" id="uploadBtn" onclick="uploadFile()" disabled>
+                🚀 Mã hóa và gửi file
+            </button>
+
+            <div class="progress" id="uploadProgress" style="display: none;">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div class="status" id="uploadStatus"></div>
+
+            <div class="download-section" id="shareSection" style="display: none;">
+                <h4>✅ File đã được gửi thành công!</h4>
+                <p>Chia sẻ mã này để người khác có thể tải file:</p>
+                <div style="background: #f7fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px dashed #cbd5e0;">
+                    <code id="shareCode" style="font-size: 18px; font-weight: bold; color: #667eea;"></code>
+                </div>
+                <button class="btn" onclick="copyShareCode()" style="background: linear-gradient(135deg, #48bb78, #38a169);">
+                    📋 Copy mã chia sẻ
+                </button>
+            </div>
+        </div>
+
+        <div id="download-tab" class="tab-content">
+            <div class="form-group">
+                <label for="downloadCode">🔗 Mã chia sẻ hoặc File ID:</label>
+                <input type="text" id="downloadCode" placeholder="Dán mã chia sẻ vào đây">
+            </div>
+
+            <div class="form-group">
+                <label for="decryptionKey">🔑 Mật khẩu giải mã:</label>
+                <input type="password" id="decryptionKey" placeholder="Nhập mật khẩu để giải mã file">
+            </div>
+
+            <button class="btn" onclick="downloadFile()">
+                📥 Tải và giải mã file
+            </button>
+
+            <div class="progress" id="downloadProgress" style="display: none;">
+                <div class="progress-bar" id="downloadProgressBar"></div>
+            </div>
+
+            <div class="status" id="downloadStatus"></div>
+
+            <div class="file-info" id="downloadFileInfo">
+                <h4>📄 Thông tin file tải xuống:</h4>
+                <p id="downloadFileName">Tên file: -</p>
+                <p id="downloadFileSize">Kích thước: -</p>
+                <p id="downloadFileType">Loại file: -</p>
+                <div class="download-section">
+                    <a class="download-link" id="finalDownloadLink" style="display: none;">
+                        💾 Tải file xuống
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature">
+                <div class="feature-icon">🔐</div>
+                <h3>Mã hóa AES-256</h3>
+                <p>Bảo mật tối đa với thuật toán mã hóa chuẩn quân sự</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>Tốc độ cao</h3>
+                <p>Truyền file nhanh chóng qua WebSocket</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🌐</div>
+                <h3>Không cần đăng ký</h3>
+                <p>Sử dụng ngay lập tức, không cần tài khoản</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🗑️</div>
+                <h3>Tự xóa</h3>
+                <p>File tự động xóa sau 24 giờ để bảo mật</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // WebSocket connection
+        let socket = null;
+        let isConnected = false;
+        
+        // File variables
+        let selectedFile = null;
+        let encryptedData = null;
+
+        // Initialize WebSocket connection
+        function initSocket() {
+            try {
+                // Thay đổi URL này thành địa chỉ server WebSocket của bạn
+                socket = new WebSocket('ws://localhost:8080');
+                
+                socket.onopen = function(event) {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    console.log('WebSocket connected');
+                };
+
+                socket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleSocketMessage(data);
+                };
+
+                socket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    console.log('WebSocket disconnected');
+                    
+                    // Thử kết nối lại sau 3 giây
+                    setTimeout(initSocket, 3000);
+                };
+
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus(false);
+                };
+            } catch (error) {
+                console.error('Socket connection error:', error);
+                updateConnectionStatus(false);
+                setTimeout(initSocket, 3000);
+            }
+        }
+
+        // Update connection status UI
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Đã kết nối - Sẵn sàng truyền file';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Mất kết nối - Đang thử kết nối lại...';
+            }
+        }
+
+        // Handle socket messages
+        function handleSocketMessage(data) {
+            switch (data.type) {
+                case 'upload_success':
+                    handleUploadSuccess(data);
+                    break;
+                case 'upload_error':
+                    showStatus('error', 'Lỗi upload: ' + data.message);
+                    break;
+                case 'download_data':
+                    handleDownloadData(data);
+                    break;
+                case 'download_error':
+                    showStatus('error', 'Lỗi download: ' + data.message, 'download');
+                    break;
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // File upload handling
+        document.getElementById('uploadZone').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        // Drag and drop
+        document.getElementById('uploadZone').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        });
+
+        document.getElementById('uploadZone').addEventListener('dragleave', (e) => {
+            e.currentTarget.classList.remove('dragover');
+        });
+
+        document.getElementById('uploadZone').addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+            
+            // Show file info
+            document.getElementById('fileName').textContent = `Tên file: ${file.name}`;
+            document.getElementById('fileSize').textContent = `Kích thước: ${formatFileSize(file.size)}`;
+            document.getElementById('fileType').textContent = `Loại file: ${file.type || 'Không xác định'}`;
+            document.getElementById('fileInfo').classList.add('show');
+            
+            // Enable upload button if encryption key is provided
+            checkUploadReady();
+        }
+
+        document.getElementById('encryptionKey').addEventListener('input', checkUploadReady);
+
+        function checkUploadReady() {
+            const hasFile = selectedFile !== null;
+            const hasKey = document.getElementById('encryptionKey').value.trim().length > 0;
+            document.getElementById('uploadBtn').disabled = !(hasFile && hasKey && isConnected);
+        }
+
+        // File upload
+        async function uploadFile() {
+            if (!selectedFile || !isConnected) return;
+
+            const encryptionKey = document.getElementById('encryptionKey').value;
+            const recipientId = document.getElementById('recipientId').value;
+
+            if (!encryptionKey) {
+                showStatus('error', 'Vui lòng nhập mật khẩu mã hóa');
+                return;
+            }
+
+            try {
+                showProgress('upload', 0);
+                document.getElementById('uploadBtn').disabled = true;
+                
+                // Read file as ArrayBuffer
+                const fileData = await readFileAsArrayBuffer(selectedFile);
+                
+                // Convert to base64 for encryption
+                const base64Data = arrayBufferToBase64(fileData);
+                
+                // Encrypt file data
+                showProgress('upload', 25);
+                const encrypted = CryptoJS.AES.encrypt(base64Data, encryptionKey).toString();
+                
+                showProgress('upload', 50);
+                
+                // Send to server
+                const uploadData = {
+                    type: 'upload',
+                    fileName: selectedFile.name,
+                    fileSize: selectedFile.size,
+                    fileType: selectedFile.type,
+                    encryptedData: encrypted,
+                    recipientId: recipientId || null
+                };
+                
+                socket.send(JSON.stringify(uploadData));
+                showProgress('upload', 75);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus('error', 'Lỗi mã hóa file: ' + error.message);
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        function handleUploadSuccess(data) {
+            showProgress('upload', 100);
+            showStatus('success', 'File đã được mã hóa và gửi thành công!');
+            
+            // Show share section
+            document.getElementById('shareCode').textContent = data.shareCode;
+            document.getElementById('shareSection').style.display = 'block';
+            
+            // Reset form
+            setTimeout(() => {
+                resetUploadForm();
+            }, 3000);
+        }
+
+        // File download
+        async function downloadFile() {
+            const downloadCode = document.getElementById('downloadCode').value.trim();
+            const decryptionKey = document.getElementById('decryptionKey').value.trim();
+            
+            if (!downloadCode || !decryptionKey) {
+                showStatus('error', 'Vui lòng nhập đầy đủ mã chia sẻ và mật khẩu', 'download');
+                return;
+            }
+            
+            if (!isConnected) {
+                showStatus('error', 'Không có kết nối WebSocket', 'download');
+                return;
+            }
+
+            try {
+                showProgress('download', 0);
+                
+                const downloadRequest = {
+                    type: 'download',
+                    shareCode: downloadCode
+                };
+                
+                socket.send(JSON.stringify(downloadRequest));
+                showProgress('download', 50);
+                
+            } catch (error) {
+                console.error('Download error:', error);
+                showStatus('error', 'Lỗi tải file: ' + error.message, 'download');
+            }
+        }
+
+        function handleDownloadData(data) {
+            const decryptionKey = document.getElementById('decryptionKey').value.trim();
+            
+            try {
+                showProgress('download', 75);
+                
+                // Decrypt file data
+                const decrypted = CryptoJS.AES.decrypt(data.encryptedData, decryptionKey);
+                const decryptedData = decrypted.toString(CryptoJS.enc.Utf8);
+                
+                if (!decryptedData) {
+                    throw new Error('Sai mật khẩu hoặc dữ liệu bị lỗi');
+                }
+                
+                showProgress('download', 90);
+                
+                // Convert back to file
+                const fileData = base64ToArrayBuffer(decryptedData);
+                const blob = new Blob([fileData], { type: data.fileType });
+                
+                // Show file info
+                document.getElementById('downloadFileName').textContent = `Tên file: ${data.fileName}`;
+                document.getElementById('downloadFileSize').textContent = `Kích thước: ${formatFileSize(data.fileSize)}`;
+                document.getElementById('downloadFileType').textContent = `Loại file: ${data.fileType || 'Không xác định'}`;
+                document.getElementById('downloadFileInfo').classList.add('show');
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const downloadLink = document.getElementById('finalDownloadLink');
+                downloadLink.href = url;
+                downloadLink.download = data.fileName;
+                downloadLink.style.display = 'inline-block';
+                
+                showProgress('download', 100);
+                showStatus('success', 'File đã được giải mã thành công!', 'download');
+                
+            } catch (error) {
+                console.error('Decryption error:', error);
+                showStatus('error', 'Lỗi giải mã: ' + error.message, 'download');
+            }
+        }
+
+        // Utility functions
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showProgress(type, percent) {
+            const progressElement = document.getElementById(type + 'Progress');
+            const progressBar = document.getElementById(type === 'upload' ? 'progressBar' : 'downloadProgressBar');
+            
+            progressElement.style.display = 'block';
+            progressBar.style.width = percent + '%';
+            
+            if (percent >= 100) {
+                setTimeout(() => {
+                    progressElement.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+            }
+        }
+
+        function showStatus(type, message, target = 'upload') {
+            const statusElement = document.getElementById(target + 'Status');
+            statusElement.className = `status ${type} show`;
+            statusElement.textContent = message;
+            
+            setTimeout(() => {
+                statusElement.classList.remove('show');
+            }, 5000);
+        }
+
+        function copyShareCode() {
+            const shareCode = document.getElementById('shareCode').textContent;
+            navigator.clipboard.writeText(shareCode).then(() => {
+                showStatus('success', 'Đã copy mã chia sẻ!');
+            });
+        }
+
+        function resetUploadForm() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('encryptionKey').value = '';
+            document.getElementById('recipientId').value = '';
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('shareSection').style.display = 'none';
+            document.getElementById('uploadBtn').disabled = true;
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initSocket();
+            checkUploadReady();
+        });
+
+    </script>
+</body>
+</html>
